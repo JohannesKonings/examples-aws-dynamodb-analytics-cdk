@@ -2,6 +2,7 @@ import * as cdk from "@aws-cdk/core";
 import * as kms from "@aws-cdk/aws-kms";
 import * as dynamodb from "@aws-cdk/aws-dynamodb";
 import * as kinesis from "@aws-cdk/aws-kinesis";
+import * as s3 from "@aws-cdk/aws-s3";
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -28,6 +29,16 @@ export class CdkStack extends cdk.Stack {
       encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
       encryptionKey: kmsKey,
       kinesisStream: stream,
+    });
+
+    const firehoseBucket = new s3.Bucket(this, "firehose-s3-bucket", {
+      bucketName: `${name}-firehose-s3-bucket`,
+      encryptionKey: kmsKey,
+    });
+
+    const athenaQueryResults = new s3.Bucket(this, "query-results", {
+      bucketName: `${name}-query-results`,
+      encryptionKey: kmsKey,
     });
   }
 }
