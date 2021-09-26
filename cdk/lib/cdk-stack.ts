@@ -3,6 +3,8 @@ import * as kms from "@aws-cdk/aws-kms";
 import * as dynamodb from "@aws-cdk/aws-dynamodb";
 import * as kinesis from "@aws-cdk/aws-kinesis";
 import * as s3 from "@aws-cdk/aws-s3";
+import * as destinations from "@aws-cdk/aws-kinesisfirehose-destinations";
+import * as firehose from "@aws-cdk/aws-kinesisfirehose";
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -34,6 +36,11 @@ export class CdkStack extends cdk.Stack {
     const firehoseBucket = new s3.Bucket(this, "firehose-s3-bucket", {
       bucketName: `${name}-firehose-s3-bucket`,
       encryptionKey: kmsKey,
+    });
+
+    const destination = new firehose.DeliveryStream(this, "Delivery Stream", {
+      sourceStream: stream,
+      destinations: [new destinations.S3Bucket(firehoseBucket)],
     });
 
     const athenaQueryResults = new s3.Bucket(this, "query-results", {
