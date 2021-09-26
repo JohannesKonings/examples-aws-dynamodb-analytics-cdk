@@ -38,10 +38,15 @@ export class CdkStack extends cdk.Stack {
       encryptionKey: kmsKey,
     });
 
-    const destination = new firehose.DeliveryStream(this, "Delivery Stream", {
-      sourceStream: stream,
-      destinations: [new destinations.S3Bucket(firehoseBucket)],
-    });
+    const firehoseDeliveryStream = new firehose.DeliveryStream(
+      this,
+      "Delivery Stream",
+      {
+        deliveryStreamName: `${name}-firehose`,
+        sourceStream: stream,
+        destinations: [new destinations.S3Bucket(firehoseBucket)],
+      }
+    );
 
     const athenaQueryResults = new s3.Bucket(this, "query-results", {
       bucketName: `${name}-query-results`,
