@@ -7,6 +7,7 @@ import * as destinations from "@aws-cdk/aws-kinesisfirehose-destinations";
 import * as firehose from "@aws-cdk/aws-kinesisfirehose";
 import * as glue from "@aws-cdk/aws-glue";
 import * as iam from "@aws-cdk/aws-iam";
+import * as athena from "@aws-cdk/aws-athena";
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -56,15 +57,13 @@ export class CdkStack extends cdk.Stack {
     });
 
     const roleCrawler = new iam.Role(this, "role crawler", {
+      roleName: `${name}-crawler-role`,
       assumedBy: new iam.ServicePrincipal("glue.amazonaws.com"),
     });
 
-    roleCrawler.addToPolicy(
-      new iam.PolicyStatement({
-        resources: ["*"],
-        actions: ["*"],
-      })
-    );
+    const glueDb = new glue.Database(this, "glue db", {
+      databaseName: `${name}-db`,
+    });
 
     const crawler = new glue.CfnCrawler(this, "crawler", {
       name: `${name}-crawler`,
@@ -76,7 +75,43 @@ export class CdkStack extends cdk.Stack {
           },
         ],
       },
-      databaseName: `${name}-db`,
+      databaseName: glueDb.databaseName,
+    });
+
+    const glueCrawlerLogArn = `arn:aws:logs:${cdk.Stack.of(this).region}:${
+      cdk.Stack.of(this).account
+    }:log-group:/aws-glue/crawlers:log-stream:${crawler.name}`;
+
+    const glueTableArn = `arn:aws:glue:${cdk.Stack.of(this).region}:${
+      cdk.Stack.of(this).account
+    }:table/${glueDb.databaseName}/*`;
+
+    roleCrawler.addToPolicy(
+      new iam.PolicyStatement({
+        resources: [
+          glueCrawlerLogArn,
+          glueTableArn,
+          glueDb.catalogArn,
+          glueDb.databaseArn,
+          kmsKey.keyArn,
+          firehoseBucket.bucketArn,
+          `${firehoseBucket.bucketArn}/*`,
+        ],
+        actions: ["logs:*", "glue:*", "kms:Decrypt", "S3:*"],
+      })
+    );
+
+    new athena.CfnWorkGroup(this, "analytics-athena-workgroup", {
+      name: `${name}-workgroup`,
+      workGroupConfiguration: {
+        resultConfiguration: {
+          outputLocation: `s3://${athenaQueryResults.bucketName}`,
+          encryptionConfiguration: {
+            encryptionOption: "SSE_KMS",
+            kmsKey: kmsKey.keyArn,
+          },
+        },
+      },
     });
   }
 }
