@@ -73,6 +73,9 @@ export class CdkStack extends cdk.Stack {
       s3Encryption: {
         mode: glue.S3EncryptionMode.KMS,
       },
+      cloudWatchEncryption: {
+        mode: glue.CloudWatchEncryptionMode.KMS,
+      },
     })
 
     const crawler = new glue.CfnCrawler(this, 'crawler', {
@@ -93,9 +96,20 @@ export class CdkStack extends cdk.Stack {
 
     const glueTableArn = `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${glueDb.databaseName}/*`
 
+    const glueCrawlerArn = `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:crawler/${crawler.name}`
+
     roleCrawler.addToPolicy(
       new iam.PolicyStatement({
-        resources: [glueCrawlerLogArn, glueTableArn, glueDb.catalogArn, glueDb.databaseArn, kmsKey.keyArn, firehoseBucket.bucketArn, `${firehoseBucket.bucketArn}/*`],
+        resources: [
+          glueCrawlerLogArn,
+          glueTableArn,
+          glueDb.catalogArn,
+          glueDb.databaseArn,
+          kmsKey.keyArn,
+          firehoseBucket.bucketArn,
+          `${firehoseBucket.bucketArn}/*`,
+          glueCrawlerArn,
+        ],
         actions: ['logs:*', 'glue:*', 'kms:Decrypt', 'S3:*'],
       })
     )
