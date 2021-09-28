@@ -59,7 +59,7 @@ export class CdkStack extends cdk.Stack {
 
     roleCrawler.addToPolicy(
       new iam.PolicyStatement({
-        resources: [kmsKey.keyArn],
+        resources: ['*'],
         actions: ['glue:GetSecurityConfiguration'],
       })
     )
