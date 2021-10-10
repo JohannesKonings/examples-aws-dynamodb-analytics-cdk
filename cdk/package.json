@@ -11,26 +11,29 @@
     "cdk": "cdk"
   },
   "devDependencies": {
-    "@aws-cdk/assert": "1.124.0",
-    "@aws-cdk/aws-athena": "^1.124.0",
-    "@aws-cdk/aws-dynamodb": "1.124.0",
-    "@aws-cdk/aws-glue": "1.124.0",
-    "@aws-cdk/aws-iam": "1.124.0",
-    "@aws-cdk/aws-kinesis": "1.124.0",
-    "@aws-cdk/aws-kinesisfirehose": "1.124.0",
-    "@aws-cdk/aws-kinesisfirehose-destinations": "1.124.0",
-    "@aws-cdk/aws-kms": "1.124.0",
-    "@aws-cdk/aws-s3": "1.124.0",
+    "@aws-cdk/assert": "1.127.0",
+    "@aws-cdk/aws-athena": "1.127.0",
+    "@aws-cdk/aws-dynamodb": "1.127.0",
+    "@aws-cdk/aws-glue": "1.127.0",
+    "@aws-cdk/aws-iam": "1.127.0",
+    "@aws-cdk/aws-kinesis": "1.127.0",
+    "@aws-cdk/aws-kinesisfirehose": "1.127.0",
+    "@aws-cdk/aws-kinesisfirehose-destinations": "1.127.0",
+    "@aws-cdk/aws-kms": "1.127.0",
+    "@aws-cdk/aws-lambda-nodejs": "1.127.0",
+    "@aws-cdk/aws-s3": "1.127.0",
     "@types/jest": "27.0.2",
-    "@types/node": "16.10.1",
-    "aws-cdk": "1.124.0",
-    "jest": "27.2.2",
+    "@types/node": "16.10.3",
+    "aws-cdk": "1.127.0",
+    "jest": "27.2.5",
     "ts-jest": "27.0.5",
     "ts-node": "10.2.1",
     "typescript": "4.4.3"
   },
   "dependencies": {
-    "@aws-cdk/core": "1.124.0",
+    "@aws-cdk/core": "1.127.0",
+    "@dazn/lambda-powertools-logger": "^1.28.1",
+    "esbuild": "^0.13.4",
     "source-map-support": "0.5.20"
   }
 }
