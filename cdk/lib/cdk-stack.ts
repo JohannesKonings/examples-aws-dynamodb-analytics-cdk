@@ -5,9 +5,11 @@ import * as kinesis from '@aws-cdk/aws-kinesis'
 import * as s3 from '@aws-cdk/aws-s3'
 import * as destinations from '@aws-cdk/aws-kinesisfirehose-destinations'
 import * as firehose from '@aws-cdk/aws-kinesisfirehose'
+import * as lambda from '@aws-cdk/aws-lambda-nodejs'
 import * as glue from '@aws-cdk/aws-glue'
 import * as iam from '@aws-cdk/aws-iam'
 import * as athena from '@aws-cdk/aws-athena'
+import { LambdaFunctionProcessor } from '@aws-cdk/aws-kinesisfirehose'
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -41,10 +43,28 @@ export class CdkStack extends cdk.Stack {
       encryptionKey: kmsKey,
     })
 
+    const processor = new lambda.NodejsFunction(this, 'lambda-function-processor', {
+      functionName: `${name}-firehose-converter`,
+      timeout: cdk.Duration.minutes(2),
+      bundling: {
+        sourceMap: true,
+      },
+    })
+
+    const lambdaProcessor = new LambdaFunctionProcessor(processor, {
+      retries: 5,
+    })
+
+    const s3Destination = new destinations.S3Bucket(firehoseBucket, {
+      encryptionKey: kmsKey,
+      bufferingInterval: cdk.Duration.seconds(60),
+      processor: lambdaProcessor,
+    })
+
     const firehoseDeliveryStream = new firehose.DeliveryStream(this, 'Delivery Stream', {
       deliveryStreamName: `${name}-firehose`,
       sourceStream: stream,
-      destinations: [new destinations.S3Bucket(firehoseBucket)],
+      destinations: [s3Destination],
     })
 
     const athenaQueryResults = new s3.Bucket(this, 'query-results', {
