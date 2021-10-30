@@ -4,7 +4,7 @@
 
 ## desription
 
-see more information here: xxx
+see more information here: [https://dev.to/aws-builders/example-how-to-analyze-dynamodb-item-changes-with-kinesis-and-athena-created-with-cdk-1o6p](https://dev.to/aws-builders/example-how-to-analyze-dynamodb-item-changes-with-kinesis-and-athena-created-with-cdk-1o6p)
 
 ## warnings
 
