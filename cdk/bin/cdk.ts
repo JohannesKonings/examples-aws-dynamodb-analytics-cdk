@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 import "source-map-support/register";
-import * as cdk from "@aws-cdk/core";
+import { App, Tags } from 'aws-cdk-lib';
 import { CdkStack } from "../lib/cdk-stack";
-import { Tags } from "@aws-cdk/core";
 
 const name = `persons-cdk`;
 
-const app = new cdk.App();
+const app = new App();
 const cdkStack = new CdkStack(app, name, {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
