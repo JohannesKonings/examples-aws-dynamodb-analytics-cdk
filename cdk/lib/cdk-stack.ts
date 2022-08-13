@@ -19,6 +19,7 @@ export class CdkStack extends cdk.Stack {
 
     const kmsKey = new kms.Key(this, 'kmsKey', {
       enableKeyRotation: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     })
 
     kmsKey.addAlias(name)
@@ -36,11 +37,14 @@ export class CdkStack extends cdk.Stack {
       encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
       encryptionKey: kmsKey,
       kinesisStream: stream,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     })
 
     const firehoseBucket = new s3.Bucket(this, 'firehose-s3-bucket', {
       bucketName: `${name}-firehose-s3-bucket`,
       encryptionKey: kmsKey,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
     })
 
     const processor = new lambda.NodejsFunction(this, 'lambda-function-processor', {
