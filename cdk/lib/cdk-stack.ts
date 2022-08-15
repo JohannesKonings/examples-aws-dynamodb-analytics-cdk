@@ -14,15 +14,6 @@ import {
   aws_athena as athena,
 } from 'aws-cdk-lib'
 
-// import * as dynamodb from '@aws-cdk/aws-dynamodb'
-// import * as kinesis from '@aws-cdk/aws-kinesis'
-// import * as s3 from '@aws-cdk/aws-s3'
-// import * as destinations from '@aws-cdk/aws-kinesisfirehose-destinations'
-// import * as firehose from '@aws-cdk/aws-kinesisfirehose'
-// import * as lambda from '@aws-cdk/aws-lambda-nodejs'
-// import * as glue from '@aws-cdk/aws-glue'
-// import * as iam from '@aws-cdk/aws-iam'
-// import * as athena from '@aws-cdk/aws-athena'
 import { LambdaFunctionProcessor as LambdaFunctionProcessorAlpha, DeliveryStream as  DeliveryStreamAlpha} from '@aws-cdk/aws-kinesisfirehose-alpha'
 import * as destinationsAlpha from '@aws-cdk/aws-kinesisfirehose-destinations-alpha'
 import * as glueAlpha from '@aws-cdk/aws-glue-alpha';
@@ -56,6 +47,15 @@ export class CdkStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     })
 
+    const loader = new lambda.NodejsFunction(this, 'lambda-function-loader', {
+      functionName: `${name}-loader`,
+      timeout: Duration.minutes(2),
+      environment: {
+        TABLE_NAME: table.tableName,
+      },
+    })
+    table.grantReadWriteData(loader);
+
     const firehoseBucket = new s3.Bucket(this, 'firehose-s3-bucket', {
       bucketName: `${name}-firehose-s3-bucket`,
       encryptionKey: kmsKey,
@@ -75,6 +75,14 @@ export class CdkStack extends Stack {
       retries: 5,
     })
 
+    // json format
+    // const s3Destination = new destinationsAlpha.S3Bucket(firehoseBucket, {
+    //   encryptionKey: kmsKey,
+    //   bufferingInterval: Duration.seconds(60),
+    //   processor: lambdaProcessor,
+    // })
+
+    // parquet format
     const s3Destination = new destinationsAlpha.S3Bucket(firehoseBucket, {
       encryptionKey: kmsKey,
       bufferingInterval: Duration.seconds(60),
@@ -112,9 +120,6 @@ export class CdkStack extends Stack {
       securityConfigurationName: `${name}-security-options`,
       s3Encryption: {
         mode: glueAlpha.S3EncryptionMode.KMS,
-      },
-      cloudWatchEncryption: {
-        mode: glueAlpha.CloudWatchEncryptionMode.KMS,
       },
     })
 

@@ -24,6 +24,7 @@
     "@aws-cdk/aws-kinesisfirehose-alpha": "^2.37.1-alpha.0",
     "@aws-cdk/aws-kinesisfirehose-destinations-alpha": "^2.37.1-alpha.0",
     "@dazn/lambda-powertools-logger": "1.28.1",
+    "@faker-js/faker": "^7.4.0",
     "aws-cdk": "^2.37.1",
     "aws-cdk-lib": "^2.37.1",
     "constructs": "^10.1.74",
