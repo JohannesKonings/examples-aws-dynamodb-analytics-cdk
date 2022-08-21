@@ -12,11 +12,14 @@ import {
   aws_iam as iam,
   aws_glue as glue,
   aws_athena as athena,
+  Size,
 } from 'aws-cdk-lib'
 
-import { LambdaFunctionProcessor as LambdaFunctionProcessorAlpha, DeliveryStream as  DeliveryStreamAlpha} from '@aws-cdk/aws-kinesisfirehose-alpha'
+import { LambdaFunctionProcessor as LambdaFunctionProcessorAlpha, DeliveryStream as DeliveryStreamAlpha } from '@aws-cdk/aws-kinesisfirehose-alpha'
 import * as destinationsAlpha from '@aws-cdk/aws-kinesisfirehose-destinations-alpha'
-import * as glueAlpha from '@aws-cdk/aws-glue-alpha';
+import * as glueAlpha from '@aws-cdk/aws-glue-alpha'
+import { CfnDeliveryStream } from 'aws-cdk-lib/aws-kinesisfirehose'
+import { SavedQueries } from './saved-queries/saved-queries'
 
 export class CdkStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -54,10 +57,11 @@ export class CdkStack extends Stack {
         TABLE_NAME: table.tableName,
       },
     })
-    table.grantReadWriteData(loader);
+    table.grantReadWriteData(loader)
 
+    const firehoseBucketName = `${name}-firehose-s3-bucket`;
     const firehoseBucket = new s3.Bucket(this, 'firehose-s3-bucket', {
-      bucketName: `${name}-firehose-s3-bucket`,
+      bucketName: firehoseBucketName,
       encryptionKey: kmsKey,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
@@ -76,24 +80,55 @@ export class CdkStack extends Stack {
     })
 
     // json format
-    // const s3Destination = new destinationsAlpha.S3Bucket(firehoseBucket, {
-    //   encryptionKey: kmsKey,
-    //   bufferingInterval: Duration.seconds(60),
-    //   processor: lambdaProcessor,
-    // })
-
-    // parquet format
     const s3Destination = new destinationsAlpha.S3Bucket(firehoseBucket, {
       encryptionKey: kmsKey,
       bufferingInterval: Duration.seconds(60),
       processor: lambdaProcessor,
     })
 
-    const firehoseDeliveryStream = new DeliveryStreamAlpha(this, 'Delivery Stream', {
-      deliveryStreamName: `${name}-firehose`,
-      sourceStream: stream,
-      destinations: [s3Destination],
-    })
+    // parquet format
+    // const s3Destination = new destinationsAlpha.S3Bucket(firehoseBucket, {
+    //   encryptionKey: kmsKey,
+    //   bufferingInterval: Duration.seconds(60),
+    //   processor: lambdaProcessor,
+    //   bufferingSize: Size.mebibytes(64),
+    // });
+
+    // const firehoseDeliveryStream = new DeliveryStreamAlpha(this, 'Delivery Stream', {
+    //   deliveryStreamName: `${name}-firehose`,
+    //   sourceStream: stream,
+    //   destinations: [s3Destination],
+    // })
+
+    // // https://5k-team.trilogy.com/hc/en-us/articles/360015651640-Configuring-Firehose-with-CDK
+    // // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-kinesisfirehose-deliverystream.html
+    // const firehoseDeliveryStreamCfn = firehoseDeliveryStream.node.defaultChild as CfnDeliveryStream;
+    // firehoseDeliveryStreamCfn.addPropertyOverride('ExtendedS3DestinationConfiguration.DataFormatConversionConfiguration', {
+    //   inputFormatConfiguration: {
+    //     deserializer: {
+    //       // These settings might need to be changed based on the use case
+    //       // This is the default settings when configured through the console
+    //       openXJsonSerDe: {
+    //         caseInsensitive: false,
+    //         // Add hive keywords (e.g. timestamp) if they are added to events schema
+    //         columnToJsonKeyMappings: {},
+    //         convertDotsInJsonKeysToUnderscores: false,
+    //       },
+    //     },
+    //   },
+    //   outputFormatConfiguration: {
+    //     serializer: {
+    //       parquetSerDe: {
+    //         compression: 'SNAPPY',
+    //       },
+    //     },
+    //   },
+    //   schemaConfiguration: {
+    //     databaseName: this.backendStack.glueStack.database.databaseName, // Target Glue database name
+    //     roleArn: this.deliveryStreamRole.roleArn,
+    //     tableName: this.backendStack.glueStack.eventsTable.tableName, // Target Glue table name
+    //   },
+    // });
 
     const athenaQueryResults = new s3.Bucket(this, 'query-results', {
       bucketName: `${name}-query-results`,
@@ -159,7 +194,7 @@ export class CdkStack extends Stack {
       })
     )
 
-    new athena.CfnWorkGroup(this, 'analytics-athena-workgroup', {
+    const athenaWorkgroup = new athena.CfnWorkGroup(this, 'analytics-athena-workgroup', {
       name: `${name}-workgroup`,
       workGroupConfiguration: {
         resultConfiguration: {
@@ -171,5 +206,14 @@ export class CdkStack extends Stack {
         },
       },
     })
+
+    // saved queries
+    const savedQueries = new SavedQueries(this, 'saved-queries', {
+      glueDb: glueDb,
+      athenaTableName: firehoseBucketName,
+      athenaWorkgroupName: athenaWorkgroup.name,
+    })
+
+    savedQueries.node.addDependency(athenaWorkgroup);
   }
 }
