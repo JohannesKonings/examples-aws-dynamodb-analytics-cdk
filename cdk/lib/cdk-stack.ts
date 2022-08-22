@@ -94,11 +94,11 @@ export class CdkStack extends Stack {
     //   bufferingSize: Size.mebibytes(64),
     // });
 
-    // const firehoseDeliveryStream = new DeliveryStreamAlpha(this, 'Delivery Stream', {
-    //   deliveryStreamName: `${name}-firehose`,
-    //   sourceStream: stream,
-    //   destinations: [s3Destination],
-    // })
+    const firehoseDeliveryStream = new DeliveryStreamAlpha(this, 'Delivery Stream', {
+      deliveryStreamName: `${name}-firehose`,
+      sourceStream: stream,
+      destinations: [s3Destination],
+    })
 
     // // https://5k-team.trilogy.com/hc/en-us/articles/360015651640-Configuring-Firehose-with-CDK
     // // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-kinesisfirehose-deliverystream.html
