@@ -16,8 +16,6 @@ export class SavedQueries extends Construct {
   constructor(scope: Construct, id: string, props: SavedQueriesProps) {
     super(scope, id)
 
-    const name = `persons-cdk`
-
     const getSqlString = (file: string): string => {
       let currentSapBookingsDdbStateSqlCommand = readFileSync(join(__dirname, `${file}`), 'utf-8').toString()
       const athenaDbName = props.glueDb.databaseName
@@ -36,7 +34,7 @@ export class SavedQueries extends Construct {
     new athenaCfn.CfnNamedQuery(this, 'query-current-ddb-state', {
       database: props.glueDb.databaseName,
       queryString: queryString,
-      description: 'query the current state from the ddb table',
+      description: 'query the current state from the ddb person table',
       name: 'current-ddb-state',
       workGroup: props.athenaWorkgroupName
     })
