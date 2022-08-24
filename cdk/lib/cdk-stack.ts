@@ -20,6 +20,8 @@ import * as destinationsAlpha from '@aws-cdk/aws-kinesisfirehose-destinations-al
 import * as glueAlpha from '@aws-cdk/aws-glue-alpha'
 import { CfnDeliveryStream } from 'aws-cdk-lib/aws-kinesisfirehose'
 import { SavedQueries } from './saved-queries/saved-queries'
+import { Quicksight } from './quicksight/quicksight'
+import { QuicksightRole } from './quicksight/quicksight-role'
 
 export class CdkStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -59,7 +61,7 @@ export class CdkStack extends Stack {
     })
     table.grantReadWriteData(loader)
 
-    const firehoseBucketName = `${name}-firehose-s3-bucket`;
+    const firehoseBucketName = `${name}-firehose-s3-bucket`
     const firehoseBucket = new s3.Bucket(this, 'firehose-s3-bucket', {
       bucketName: firehoseBucketName,
       encryptionKey: kmsKey,
@@ -214,6 +216,15 @@ export class CdkStack extends Stack {
       athenaWorkgroupName: athenaWorkgroup.name,
     })
 
-    savedQueries.node.addDependency(athenaWorkgroup);
+    savedQueries.node.addDependency(athenaWorkgroup)
+
+    new Quicksight(this, 'quicksight', {
+      bucket: firehoseBucket,
+    })
+
+    new QuicksightRole(this, 'quicksight-role', {
+      name: name,
+      bucket: firehoseBucket,
+    })
   }
 }
