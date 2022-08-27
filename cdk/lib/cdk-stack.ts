@@ -172,6 +172,13 @@ export class CdkStack extends Stack {
       },
       databaseName: glueDb.databaseName,
       crawlerSecurityConfiguration: glueSecurityOptions.securityConfigurationName,
+      configuration: JSON.stringify({
+        Version: 1.0,
+        Grouping: { TableGroupingPolicy: 'CombineCompatibleSchemas' },
+        CrawlerOutput: {
+          Partitions: { AddOrUpdateBehavior: 'InheritFromTable' },
+        },
+      }),
     })
 
     const glueCrawlerLogArn = `arn:aws:logs:${Stack.of(this).region}:${Stack.of(this).account}:log-group:/aws-glue/crawlers:log-stream:${crawler.name}`

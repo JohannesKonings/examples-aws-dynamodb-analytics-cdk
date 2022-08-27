@@ -30,8 +30,8 @@ export class Quicksight extends Construct {
       destinationKeyPrefix: 'manifest',
     })
 
-    const dataSourceName = `${props.name}-data-source`
-    const dataSetName = `${props.name}-data-set`
+    const dataSourceName = `${props.name}-data-source3`
+    const dataSetName = `${props.name}-data-set3`
     const manifestKey = 'manifest/manifest.json'
 
     // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-quicksight-datasource-resourcepermission.html
@@ -180,8 +180,6 @@ export class Quicksight extends Construct {
         },
       },
       permissions: permissionsDataSet,
-    });
-
-    dataSet.
+    })
   }
 }
