@@ -220,6 +220,7 @@ export class CdkStack extends Stack {
 
     new Quicksight(this, 'quicksight', {
       bucket: firehoseBucket,
+      name: name,
     })
 
     new QuicksightRole(this, 'quicksight-role', {

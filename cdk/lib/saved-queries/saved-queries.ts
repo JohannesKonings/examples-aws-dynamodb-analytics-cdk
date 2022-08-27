@@ -20,9 +20,7 @@ export class SavedQueries extends Construct {
       let currentSapBookingsDdbStateSqlCommand = readFileSync(join(__dirname, `${file}`), 'utf-8').toString()
       const athenaDbName = props.glueDb.databaseName
       let athenaTableName = props.athenaTableName;
-      console.log(`athenaTableName1: ${athenaTableName}`)
       athenaTableName = athenaTableName.replace(/-/g, '_')
-      console.log(`athenaTableName2: ${athenaTableName}`)
       currentSapBookingsDdbStateSqlCommand = currentSapBookingsDdbStateSqlCommand.replace(/athenaDbName/g, athenaDbName)
       currentSapBookingsDdbStateSqlCommand = currentSapBookingsDdbStateSqlCommand.replace(/athenaTableName/g, athenaTableName)
       return currentSapBookingsDdbStateSqlCommand
