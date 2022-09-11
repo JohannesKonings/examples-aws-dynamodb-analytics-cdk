@@ -81,11 +81,14 @@ export class CdkStack extends Stack {
       retries: 5,
     })
 
+    const ddbChangesPrefix = 'ddb-changes';
+
     // json format
     const s3Destination = new destinationsAlpha.S3Bucket(firehoseBucket, {
       encryptionKey: kmsKey,
       bufferingInterval: Duration.seconds(60),
       processor: lambdaProcessor,
+      dataOutputPrefix: `${ddbChangesPrefix}/`,
     })
 
     // parquet format
@@ -166,7 +169,7 @@ export class CdkStack extends Stack {
       targets: {
         s3Targets: [
           {
-            path: `s3://${firehoseBucket.bucketName}`,
+            path: `s3://${firehoseBucket.bucketName}/${ddbChangesPrefix}`,
           },
         ],
       },
@@ -219,7 +222,7 @@ export class CdkStack extends Stack {
     // saved queries
     const savedQueries = new SavedQueries(this, 'saved-queries', {
       glueDb: glueDb,
-      athenaTableName: firehoseBucketName,
+      athenaTableName: ddbChangesPrefix,
       athenaWorkgroupName: athenaWorkgroup.name,
     })
 
