@@ -12,6 +12,7 @@ import {
   aws_iam as iam,
   aws_glue as glue,
   aws_athena as athena,
+  aws_logs as logs,
   Size,
 } from 'aws-cdk-lib'
 
@@ -31,6 +32,7 @@ export class CdkStack extends Stack {
 
     const kmsKey = new kms.Key(this, 'kmsKey', {
       enableKeyRotation: true,
+      pendingWindow: Duration.days(7),
       removalPolicy: RemovalPolicy.DESTROY,
     })
 
@@ -89,6 +91,10 @@ export class CdkStack extends Stack {
       bufferingInterval: Duration.seconds(60),
       processor: lambdaProcessor,
       dataOutputPrefix: `${ddbChangesPrefix}/`,
+      logGroup: new logs.LogGroup(this, 'firehose-s3-log-group', {
+        logGroupName: `${name}-firehose-s3-log-group`,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
     })
 
     // parquet format
@@ -138,6 +144,8 @@ export class CdkStack extends Stack {
     const athenaQueryResults = new s3.Bucket(this, 'query-results', {
       bucketName: `${name}-query-results`,
       encryptionKey: kmsKey,
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
     })
 
     const roleCrawler = new iam.Role(this, 'role crawler', {
@@ -145,12 +153,6 @@ export class CdkStack extends Stack {
       assumedBy: new iam.ServicePrincipal('glue.amazonaws.com'),
     })
 
-    roleCrawler.addToPolicy(
-      new iam.PolicyStatement({
-        resources: ['*'],
-        actions: ['glue:GetSecurityConfiguration'],
-      })
-    )
 
     const glueDb = new glueAlpha.Database(this, 'glue db', {
       databaseName: `${name}-db`,
@@ -160,6 +162,7 @@ export class CdkStack extends Stack {
       securityConfigurationName: `${name}-security-options`,
       s3Encryption: {
         mode: glueAlpha.S3EncryptionMode.KMS,
+        kmsKey: kmsKey,
       },
     })
 
@@ -184,16 +187,19 @@ export class CdkStack extends Stack {
       }),
     })
 
-    const glueCrawlerLogArn = `arn:aws:logs:${Stack.of(this).region}:${Stack.of(this).account}:log-group:/aws-glue/crawlers:log-stream:${crawler.name}`
+    // const glueCrawlerLogArn = `arn:aws:logs:${Stack.of(this).region}:${Stack.of(this).account}:log-group:/aws-glue/crawlers:log-stream:${crawler.name}`
+    // const glueCrawlerLogArn = `arn:aws:logs:${Stack.of(this).region}:${Stack.of(this).account}:*`;
 
     const glueTableArn = `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:table/${glueDb.databaseName}/*`
+    // const glueTableArn = `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:*`;
 
     const glueCrawlerArn = `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:crawler/${crawler.name}`
+    // const glueCrawlerArn = `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:*`;
 
     roleCrawler.addToPolicy(
       new iam.PolicyStatement({
         resources: [
-          glueCrawlerLogArn,
+          // glueCrawlerLogArn,
           glueTableArn,
           glueDb.catalogArn,
           glueDb.databaseArn,
@@ -205,6 +211,14 @@ export class CdkStack extends Stack {
         actions: ['logs:*', 'glue:*', 'kms:Decrypt', 'S3:*'],
       })
     )
+    roleCrawler.addToPolicy(
+      new iam.PolicyStatement({
+        resources: ['*'],
+        actions: ['glue:GetSecurityConfiguration'],
+      })
+    )
+    glueSecurityOptions.node.addDependency(roleCrawler)
+    // crawler.node.addDependency(roleCrawler)
 
     const athenaWorkgroup = new athena.CfnWorkGroup(this, 'analytics-athena-workgroup', {
       name: `${name}-workgroup`,
@@ -231,6 +245,7 @@ export class CdkStack extends Stack {
     new Quicksight(this, 'quicksight', {
       bucket: firehoseBucket,
       name: name,
+      prefix: ddbChangesPrefix,
     })
 
     new QuicksightRole(this, 'quicksight-role', {

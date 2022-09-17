@@ -1,5 +1,5 @@
 import { Construct } from 'constructs'
-import { Stack, aws_s3_deployment as s3Deployment, aws_quicksight as quicksightCfn } from 'aws-cdk-lib'
+import { Stack, aws_s3_deployment as s3Deployment, aws_quicksight as quicksightCfn, custom_resources } from 'aws-cdk-lib'
 import { IBucket } from 'aws-cdk-lib/aws-s3'
 
 // https://aws-blog.de/2021/09/building-quicksight-datasets-with-cdk-s3.html
@@ -7,6 +7,7 @@ import { IBucket } from 'aws-cdk-lib/aws-s3'
 export interface QuicksightProps {
   name: string
   bucket: IBucket
+  prefix: string
 }
 
 export class Quicksight extends Construct {
@@ -16,7 +17,8 @@ export class Quicksight extends Construct {
     const manifest = {
       fileLocations: [
         {
-          URIPrefixes: [`s3://${props.bucket.bucketName}/`],
+          URIPrefixes: [`s3://${props.bucket.bucketName}/${props.prefix}/`],
+          // URIPrefixes: [`s3://${props.bucket.bucketName}/`],
         },
       ],
       globalUploadSettings: {
@@ -24,21 +26,36 @@ export class Quicksight extends Construct {
       },
     }
 
-    new s3Deployment.BucketDeployment(this, 'deploy-manifest', {
+    const s3BucketDeployment = new s3Deployment.BucketDeployment(this, 'deploy-manifest', {
       sources: [s3Deployment.Source.jsonData('manifest.json', manifest)],
       destinationBucket: props.bucket,
       destinationKeyPrefix: 'manifest',
     })
+    const dummyJsonString = JSON.stringify({ dummy: 'dummy'}); // Delete after deplyoment
+    const customResourcePutObject = new custom_resources.AwsCustomResource(this, 'prefix-creation', { // add -put
+      onCreate: {
+        service: 'S3',
+        action: 'putObject',
+        parameters: {
+          Bucket: props.bucket.bucketName,
+          Key: `${props.prefix}/dummy.json`,
+          Body: dummyJsonString,
+        },
+        physicalResourceId: custom_resources.PhysicalResourceId.of('prefix-creation'),
+      },
+      policy: custom_resources.AwsCustomResourcePolicy.fromSdkCalls({ resources: custom_resources.AwsCustomResourcePolicy.ANY_RESOURCE }),
+    });
+    props.bucket.grantReadWrite(customResourcePutObject);
 
-    const dataSourceName = `${props.name}-data-source3`
-    const dataSetName = `${props.name}-data-set3`
+    const datasourceName = `${props.name}-datasource`
+    const datasetName = `${props.name}-dataset`
     const manifestKey = 'manifest/manifest.json'
 
     // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-quicksight-datasource-resourcepermission.html
     const quicksightUsername = process.env.QUICKSIGHT_USERNAME
     const principalArn = `arn:aws:quicksight:${Stack.of(this).region}:${Stack.of(this).account}:user/default/${quicksightUsername}`
 
-    const permissionsDataSource = [
+    const permissionsDatasource = [
       {
         principal: principalArn,
         actions: [
@@ -52,7 +69,7 @@ export class Quicksight extends Construct {
       },
     ]
 
-    const permissionsDataSet = [
+    const permissionsDataset = [
       {
         principal: principalArn,
         actions: [
@@ -70,11 +87,11 @@ export class Quicksight extends Construct {
       },
     ]
 
-    const dataSource = new quicksightCfn.CfnDataSource(this, 'data-source', {
-      name: dataSourceName,
+    const datasource = new quicksightCfn.CfnDataSource(this, 'datasource', {
+      name: datasourceName,
       type: 'S3',
       awsAccountId: Stack.of(this).account,
-      dataSourceId: dataSourceName,
+      dataSourceId: datasourceName,
       dataSourceParameters: {
         s3Parameters: {
           manifestFileLocation: {
@@ -83,22 +100,21 @@ export class Quicksight extends Construct {
           },
         },
       },
-      permissions: permissionsDataSource,
+      permissions: permissionsDatasource,
     })
+    datasource.node.addDependency(customResourcePutObject)
 
-    const dataSet = new quicksightCfn.CfnDataSet(this, 'data-set', {
-      name: dataSetName,
+    const dataset = new quicksightCfn.CfnDataSet(this, 'dataset', {
+      name: datasetName,
       awsAccountId: Stack.of(this).account,
-      dataSetId: dataSetName,
+      dataSetId: datasetName,
       importMode: 'SPICE',
       physicalTableMap: {
         itemChanges: {
           s3Source: {
-            dataSourceArn: dataSource.attrArn,
+            dataSourceArn: datasource.attrArn,
             uploadSettings: {
-              containsHeader: true,
               format: 'JSON',
-              startFromRow: 2,
             },
             inputColumns: [
               {
@@ -175,11 +191,27 @@ export class Quicksight extends Construct {
       },
       logicalTableMap: {
         logicalTableProperty: {
-          alias: `${dataSetName}-alias`,
+          alias: `${datasetName}-alias`,
           source: { physicalTableId: 'itemChanges' },
         },
       },
-      permissions: permissionsDataSet,
-    })
+      permissions: permissionsDataset,
+    });
+
+    const customResourceDeleteObject = new custom_resources.AwsCustomResource(this, 'prefix-creation-delete', {
+      onCreate: {
+        service: 'S3',
+        action: 'deleteObject',
+        parameters: {
+          Bucket: props.bucket.bucketName,
+          Key: `${props.prefix}/dummy.json`,
+        },
+        physicalResourceId: custom_resources.PhysicalResourceId.of('prefix-creation'),
+      },
+      policy: custom_resources.AwsCustomResourcePolicy.fromSdkCalls({ resources: custom_resources.AwsCustomResourcePolicy.ANY_RESOURCE }),
+    });
+    props.bucket.grantReadWrite(customResourceDeleteObject);
+    customResourceDeleteObject.node.addDependency(dataset);
+
   }
 }
