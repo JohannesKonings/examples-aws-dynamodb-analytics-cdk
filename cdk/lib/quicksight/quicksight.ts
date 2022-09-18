@@ -2,8 +2,6 @@ import { Construct } from 'constructs'
 import { Stack, aws_s3_deployment as s3Deployment, aws_quicksight as quicksightCfn, custom_resources } from 'aws-cdk-lib'
 import { IBucket } from 'aws-cdk-lib/aws-s3'
 
-// https://aws-blog.de/2021/09/building-quicksight-datasets-with-cdk-s3.html
-
 export interface QuicksightProps {
   name: string
   bucket: IBucket
@@ -18,7 +16,6 @@ export class Quicksight extends Construct {
       fileLocations: [
         {
           URIPrefixes: [`s3://${props.bucket.bucketName}/${props.prefix}/`],
-          // URIPrefixes: [`s3://${props.bucket.bucketName}/`],
         },
       ],
       globalUploadSettings: {
@@ -51,7 +48,6 @@ export class Quicksight extends Construct {
     const datasetName = `${props.name}-dataset`
     const manifestKey = 'manifest/manifest.json'
 
-    // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-quicksight-datasource-resourcepermission.html
     const quicksightUsername = process.env.QUICKSIGHT_USERNAME
     const principalArn = `arn:aws:quicksight:${Stack.of(this).region}:${Stack.of(this).account}:user/default/${quicksightUsername}`
 
