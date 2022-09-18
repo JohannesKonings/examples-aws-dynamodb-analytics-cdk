@@ -14,4 +14,7 @@ see more information here: [https://dev.to/aws-builders/example-how-to-analyze-d
 
 ## warnings
 
-:warning: Don't forget to destroy after testing. Kinesis Data Streams has [costs](https://aws.amazon.com/kinesis/data-streams/pricing/) per hour
+:warning: Don't forget to destroy after testing. 
+
+* Kinesis Data Streams has [costs](https://aws.amazon.com/kinesis/data-streams/pricing/) per hour
+* Quicksight has [costs](https://aws.amazon.com/quicksight/pricing/) after the free trial
