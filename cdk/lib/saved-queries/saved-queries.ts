@@ -17,13 +17,13 @@ export class SavedQueries extends Construct {
     super(scope, id)
 
     const getSqlString = (file: string): string => {
-      let personDdbStateSqlCommand = readFileSync(join(__dirname, `${file}`), 'utf-8').toString()
+      let personsDdbStateSqlCommand = readFileSync(join(__dirname, `${file}`), 'utf-8').toString()
       const athenaDbName = props.glueDb.databaseName
       let athenaTableName = props.athenaTableName;
       athenaTableName = athenaTableName.replace(/-/g, '_')
-      personDdbStateSqlCommand = personDdbStateSqlCommand.replace(/athenaDbName/g, athenaDbName)
-      personDdbStateSqlCommand = personDdbStateSqlCommand.replace(/athenaTableName/g, athenaTableName)
-      return personDdbStateSqlCommand
+      personsDdbStateSqlCommand = personsDdbStateSqlCommand.replace(/athenaDbName/g, athenaDbName)
+      personsDdbStateSqlCommand = personsDdbStateSqlCommand.replace(/athenaTableName/g, athenaTableName)
+      return personsDdbStateSqlCommand
     }
 
     let queryString = getSqlString('ddb-state.sql')
