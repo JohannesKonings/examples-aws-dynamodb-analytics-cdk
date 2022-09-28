@@ -13,7 +13,6 @@ import {
   aws_glue as glue,
   aws_athena as athena,
   aws_logs as logs,
-  Size,
 } from 'aws-cdk-lib'
 
 import { LambdaFunctionProcessor as LambdaFunctionProcessorAlpha, DeliveryStream as DeliveryStreamAlpha } from '@aws-cdk/aws-kinesisfirehose-alpha'
@@ -23,6 +22,8 @@ import { CfnDeliveryStream } from 'aws-cdk-lib/aws-kinesisfirehose'
 import { SavedQueries } from './saved-queries/saved-queries'
 import { Quicksight } from './quicksight/quicksight'
 import { QuicksightRole } from './quicksight/quicksight-role'
+import { DdbExport } from './ddb-export/ddb-export'
+import { DdbExportStepFunction } from './ddb-export/ddb-export-step-function'
 
 export class CdkStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -52,6 +53,7 @@ export class CdkStack extends Stack {
       encryptionKey: kmsKey,
       kinesisStream: stream,
       removalPolicy: RemovalPolicy.DESTROY,
+      pointInTimeRecovery: true,
     })
 
     const loader = new lambda.NodejsFunction(this, 'lambda-function-loader', {
@@ -251,6 +253,23 @@ export class CdkStack extends Stack {
     new QuicksightRole(this, 'quicksight-role', {
       name: name,
       bucket: firehoseBucket,
+    })
+
+    new DdbExport(this, 'ddb-export', {
+      name: name,
+      table: table,
+      bucket: firehoseBucket,
+      glueDb: glueDb,
+      athenaWorkgroup: athenaWorkgroup,
+    })
+
+    new DdbExportStepFunction(this, 'ddb-export-step-function', {
+      name: name,
+      table: table,
+      bucket: firehoseBucket,
+      athenaResultBucket: athenaQueryResults,
+      glueDb: glueDb,
+      athenaWorkgroup: athenaWorkgroup,
     })
   }
 }
