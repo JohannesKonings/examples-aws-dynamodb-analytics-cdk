@@ -17,7 +17,7 @@ import { join } from 'path'
 export interface DdbExportStepFunctionProps {
   name: string
   table: dynamodb.ITable
-  bucket: s3.IBucket
+  firehoseBucket: s3.IBucket
   athenaResultBucket: s3.IBucket
   glueDb: glueAlpha.IDatabase
   athenaWorkgroup: athena.CfnWorkGroup
@@ -33,7 +33,7 @@ export class DdbExportStepFunction extends Construct {
       environment: {
         REGION: Stack.of(this).region,
         DYNAMO_DB_TABLE_ARN: props.table.tableArn,
-        S3_BUCKET_NAME: props.bucket.bucketName,
+        S3_BUCKET_NAME: props.firehoseBucket.bucketName,
       },
     })
     lambdaStartExport.addToRolePolicy(
@@ -45,13 +45,13 @@ export class DdbExportStepFunction extends Construct {
     lambdaStartExport.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['s3:PutObject'],
-        resources: [`${props.bucket.bucketArn}/*`],
+        resources: [`${props.firehoseBucket.bucketArn}/*`],
       })
     )
     lambdaStartExport.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['kms:Decrypt'],
-        resources: [props.bucket.encryptionKey!.keyArn],
+        resources: [props.firehoseBucket.encryptionKey!.keyArn],
       })
     )
 
@@ -61,7 +61,7 @@ export class DdbExportStepFunction extends Construct {
       environment: {
         REGION: Stack.of(this).region,
         DYNAMO_DB_TABLE_ARN: props.table.tableArn,
-        S3_BUCKET_NAME: props.bucket.bucketName,
+        S3_BUCKET_NAME: props.firehoseBucket.bucketName,
       },
     })
     lambdaCheckExportState.addToRolePolicy(
@@ -101,7 +101,7 @@ export class DdbExportStepFunction extends Construct {
 
     const getSqlString = (file: string): string => {
       let createTableCommand = readFileSync(join(__dirname, `${file}`), 'utf-8').toString()
-      const s3Location = `s3://${props.bucket.bucketName}/ddb-exports/AWSDynamoDB/ddb-export-id/data/`
+      const s3Location = `s3://${props.firehoseBucket.bucketName}/ddb-exports/AWSDynamoDB/ddb-export-id/data/`
       createTableCommand = createTableCommand.replace(/s3Location/g, s3Location)
       createTableCommand = createTableCommand.replace(/table_name/g, athenaTableName)
       return createTableCommand
@@ -137,18 +137,14 @@ export class DdbExportStepFunction extends Construct {
     )
     lambdaCreateAthenaTable.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['s3:*'],
-        resources: [`*`],
-        // actions: ['s3:PutObject'],
-        // resources: [`${props.bucket.bucketArn}/*`],
+        actions: ['s3:PutObject'],
+        resources: [props.athenaResultBucket.bucketArn, `${props.athenaResultBucket.bucketArn}/*`],
       })
     );
     lambdaCreateAthenaTable.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['kms:*'],
-        resources: ['*'],
-        // actions: ['kms:Decrypt'],
-        // resources: [props.bucket.encryptionKey!.keyArn],
+        actions: ['kms:Decrypt', 'kms:GenerateDataKey'],
+        resources: [props.athenaResultBucket.encryptionKey!.keyArn],
       })
     );
     lambdaCreateAthenaTable.addToRolePolicy(
@@ -175,8 +171,8 @@ export class DdbExportStepFunction extends Construct {
         'glue:UpdateTable'
       ],
         resources: [
-          `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:catalog`, // remove?
-          `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:database/default`, // remove?
+          `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:catalog`, 
+          // `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:database/default`,
           props.glueDb.databaseArn, 
           `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:table/${props.glueDb.databaseName}/${athenaTableName}`],
       })
@@ -225,7 +221,7 @@ export class DdbExportStepFunction extends Construct {
     // https://aws.amazon.com/de/premiumsupport/knowledge-center/access-denied-athena/
     sfn.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['s3:*'],
+        actions: ['s3:PutObject'],
         resources: [props.athenaResultBucket.bucketArn, `${props.athenaResultBucket.bucketArn}/*`],
       })
     )
@@ -235,31 +231,5 @@ export class DdbExportStepFunction extends Construct {
         resources: [props.athenaResultBucket.encryptionKey!.keyArn],
       })
     )
-    // sfn.addToRolePolicy(
-    //   new iam.PolicyStatement({
-    //     actions: [
-    //     'glue:BatchCreatePartition',
-    //     'glue:BatchDeletePartition',
-    //     'glue:BatchDeleteTable',
-    //     'glue:BatchGetPartition',
-    //     'glue:CreateDatabase',
-    //     'glue:CreatePartition',
-    //     'glue:CreateTable',
-    //     'glue:DeleteDatabase',
-    //     'glue:DeletePartition',
-    //     'glue:DeleteTable',
-    //     'glue:GetDatabase',
-    //     'glue:GetDatabases',
-    //     'glue:GetPartition',
-    //     'glue:GetPartitions',
-    //     'glue:GetTable',
-    //     'glue:GetTables',
-    //     'glue:UpdateDatabase',
-    //     'glue:UpdatePartition',
-    //     'glue:UpdateTable'
-    //   ],
-    //     resources: [props.glueDb.databaseArn, `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:table/${props.glueDb.databaseName}/${athenaTableName}`],
-    //   })
-    // )
   }
 }

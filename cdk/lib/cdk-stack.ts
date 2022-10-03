@@ -258,7 +258,8 @@ export class CdkStack extends Stack {
     new DdbExport(this, 'ddb-export', {
       name: name,
       table: table,
-      bucket: firehoseBucket,
+      firehoseBucket: firehoseBucket,
+      athenaResultBucket: athenaQueryResults,
       glueDb: glueDb,
       athenaWorkgroup: athenaWorkgroup,
     })
@@ -266,7 +267,7 @@ export class CdkStack extends Stack {
     new DdbExportStepFunction(this, 'ddb-export-step-function', {
       name: name,
       table: table,
-      bucket: firehoseBucket,
+      firehoseBucket: firehoseBucket,
       athenaResultBucket: athenaQueryResults,
       glueDb: glueDb,
       athenaWorkgroup: athenaWorkgroup,

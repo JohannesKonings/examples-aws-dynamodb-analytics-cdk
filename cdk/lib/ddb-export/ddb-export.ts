@@ -7,7 +7,8 @@ import { join } from 'path'
 export interface DdbExportProps {
   name: string
   table: dynamodb.ITable
-  bucket: s3.IBucket
+  firehoseBucket: s3.IBucket
+  athenaResultBucket: s3.IBucket
   glueDb: glueAlpha.IDatabase
   athenaWorkgroup: athena.CfnWorkGroup
 }
@@ -18,11 +19,11 @@ export class DdbExport extends Construct {
 
     const getSqlString = (file: string): string => {
       let createTableCommand = readFileSync(join(__dirname, `${file}`), 'utf-8').toString()
-      const s3Location = `s3://${props.bucket.bucketName}/ddb-exports/AWSDynamoDB/ddb-export-id/data/`;
+      const s3Location = `s3://${props.firehoseBucket.bucketName}/ddb-exports/AWSDynamoDB/ddb-export-id/data/`
       createTableCommand = createTableCommand.replace(/s3Location/g, s3Location)
       return createTableCommand
     }
-  
+
     const queryStringCreateTable = getSqlString('createTable.sql')
     const queryStringReadTable = getSqlString('readTable.sql')
 
@@ -32,7 +33,7 @@ export class DdbExport extends Construct {
       environment: {
         REGION: Stack.of(this).region,
         DYNAMO_DB_TABLE_ARN: props.table.tableArn,
-        S3_BUCKET_NAME: props.bucket.bucketName,
+        S3_BUCKET_NAME: props.firehoseBucket.bucketName,
         GLUE_DATABASE_NAME: props.glueDb.databaseName,
         ATHENA_WORKGROUP_NAME: props.athenaWorkgroup.name,
         ATHENA_QUERY_STRING_CREATE_TABLE: queryStringCreateTable,
@@ -44,26 +45,54 @@ export class DdbExport extends Construct {
         actions: ['dynamodb:ExportTableToPointInTime'],
         resources: [props.table.tableArn],
       })
-    );
+    )
     ddbExportAthenaQuery.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['s3:PutObject'],
-        resources: [`${props.bucket.bucketArn}/*`],
+        resources: [props.firehoseBucket.bucketArn, `${props.firehoseBucket.bucketArn}/*`,
+        props.athenaResultBucket.bucketArn, `${props.athenaResultBucket.bucketArn}/*`],
       })
     );
     ddbExportAthenaQuery.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['kms:Decrypt'],
-        resources: [props.bucket.encryptionKey!.keyArn],
+        actions: ['kms:Decrypt', 'kms:GenerateDataKey'],
+        resources: [props.firehoseBucket.encryptionKey!.keyArn, props.athenaResultBucket.encryptionKey!.keyArn],
       })
-    );
+    )
     ddbExportAthenaQuery.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['athena:CreateNamedQuery', 'athena:ListNamedQueries', 'athena:GetNamedQuery', 'athena:UpdateNamedQuery'],
+        actions: ['athena:CreateNamedQuery', 'athena:ListNamedQueries', 'athena:GetNamedQuery', 'athena:UpdateNamedQuery', 'athena:StartQueryExecution'],
         resources: [`arn:aws:athena:${Stack.of(this).region}:${Stack.of(this).account}:workgroup/${props.athenaWorkgroup.name}`],
       })
     );
-
-    
+    ddbExportAthenaQuery.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+        'glue:BatchCreatePartition',
+        'glue:BatchDeletePartition',
+        'glue:BatchDeleteTable',
+        'glue:BatchGetPartition',
+        'glue:CreateDatabase',
+        'glue:CreatePartition',
+        'glue:CreateTable',
+        'glue:DeleteDatabase',
+        'glue:DeletePartition',
+        'glue:DeleteTable',
+        'glue:GetDatabase',
+        'glue:GetDatabases',
+        'glue:GetPartition',
+        'glue:GetPartitions',
+        'glue:GetTable',
+        'glue:GetTables',
+        'glue:UpdateDatabase',
+        'glue:UpdatePartition',
+        'glue:UpdateTable'
+      ],
+        resources: [
+          `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:catalog`, 
+          props.glueDb.databaseArn, 
+          `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:table/${props.glueDb.databaseName}/*`],
+      })
+    );
   }
 }
