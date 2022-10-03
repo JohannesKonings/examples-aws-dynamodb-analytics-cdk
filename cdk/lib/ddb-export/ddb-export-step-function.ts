@@ -41,19 +41,19 @@ export class DdbExportStepFunction extends Construct {
         actions: ['dynamodb:ExportTableToPointInTime'],
         resources: [props.table.tableArn],
       })
-    );
+    )
     lambdaStartExport.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['s3:PutObject'],
         resources: [`${props.bucket.bucketArn}/*`],
       })
-    );
+    )
     lambdaStartExport.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['kms:Decrypt'],
         resources: [props.bucket.encryptionKey!.keyArn],
       })
-    );
+    )
 
     const lambdaCheckExportState = new lambdaNodejs.NodejsFunction(this, 'lambda-function-check-export-state', {
       functionName: `${props.name}-ddb-check-export-state`,
@@ -87,15 +87,136 @@ export class DdbExportStepFunction extends Construct {
       errors: ['InProgressError'],
     })
 
-    const athenaDropTable = new stepfunctions_tasks.AthenaStartQueryExecution(this, 'drop table', {
-      queryString: `DROP TABLE IF EXISTS \`${props.glueDb.databaseName}.ddb_exported_table\`;`,
+    const athenaTableName = 'ddb_exported_table'
+
+    const athenaDropTable = new stepfunctions_tasks.AthenaStartQueryExecution(this, 'drop Athena table', {
+      queryString: `DROP TABLE IF EXISTS \`${props.glueDb.databaseName}.${athenaTableName}\`;`,
       workGroup: props.athenaWorkgroup.name,
-    });
+      queryExecutionContext: {
+        databaseName: props.glueDb.databaseName,
+      },
+      integrationPattern: stepfunctions.IntegrationPattern.RUN_JOB,
+      resultPath: '$.TaskResult',
+    })
 
-    const athenaCreateTable = new stepfunctions.Pass(this, 'create table', {});
-    const sfnTaskCreateSelectQuery = new stepfunctions.Pass(this, 'create SELECT query', {});
+    const getSqlString = (file: string): string => {
+      let createTableCommand = readFileSync(join(__dirname, `${file}`), 'utf-8').toString()
+      const s3Location = `s3://${props.bucket.bucketName}/ddb-exports/AWSDynamoDB/ddb-export-id/data/`
+      createTableCommand = createTableCommand.replace(/s3Location/g, s3Location)
+      createTableCommand = createTableCommand.replace(/table_name/g, athenaTableName)
+      return createTableCommand
+    }
 
-    const definition = sfnTaskStartExport.next(sfnTaskCheckExportState).next(athenaDropTable).next(athenaCreateTable).next(sfnTaskCreateSelectQuery);
+    const queryStringCreateTable = getSqlString('createTable.sql')
+
+    // const athenaCreateTable = new stepfunctions_tasks.AthenaStartQueryExecution(this, 'create table', {
+    //   queryString: queryStringCreateTable,
+
+    //   workGroup: props.athenaWorkgroup.name,
+    //   queryExecutionContext: {
+    //     databaseName: props.glueDb.databaseName,
+    //   },
+    //   resultPath: '$.TaskResult',
+    // })
+
+    const lambdaCreateAthenaTable = new lambdaNodejs.NodejsFunction(this, 'lambda-function-create-athena-table', {
+      functionName: `${props.name}-create-athena-table`,
+      timeout: Duration.minutes(2),
+      environment: {
+        REGION: Stack.of(this).region,
+        GLUE_DATABASE_NAME: props.glueDb.databaseName,
+        ATHENA_WORKGROUP_NAME: props.athenaWorkgroup.name,
+        ATHENA_QUERY_STRING_CREATE_TABLE: queryStringCreateTable,
+      },
+    })
+    lambdaCreateAthenaTable.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['athena:StartQueryExecution'],
+        resources: [`arn:aws:athena:${Stack.of(this).region}:${Stack.of(this).account}:workgroup/${props.athenaWorkgroup.name}`],
+      })
+    )
+    lambdaCreateAthenaTable.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:*'],
+        resources: [`*`],
+        // actions: ['s3:PutObject'],
+        // resources: [`${props.bucket.bucketArn}/*`],
+      })
+    );
+    lambdaCreateAthenaTable.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['kms:*'],
+        resources: ['*'],
+        // actions: ['kms:Decrypt'],
+        // resources: [props.bucket.encryptionKey!.keyArn],
+      })
+    );
+    lambdaCreateAthenaTable.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+        'glue:BatchCreatePartition',
+        'glue:BatchDeletePartition',
+        'glue:BatchDeleteTable',
+        'glue:BatchGetPartition',
+        'glue:CreateDatabase',
+        'glue:CreatePartition',
+        'glue:CreateTable',
+        'glue:DeleteDatabase',
+        'glue:DeletePartition',
+        'glue:DeleteTable',
+        'glue:GetDatabase',
+        'glue:GetDatabases',
+        'glue:GetPartition',
+        'glue:GetPartitions',
+        'glue:GetTable',
+        'glue:GetTables',
+        'glue:UpdateDatabase',
+        'glue:UpdatePartition',
+        'glue:UpdateTable'
+      ],
+        resources: [
+          `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:catalog`, // remove?
+          `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:database/default`, // remove?
+          props.glueDb.databaseArn, 
+          `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:table/${props.glueDb.databaseName}/${athenaTableName}`],
+      })
+    );
+
+    const sfnTaskCreateAthenaTable = new stepfunctions_tasks.LambdaInvoke(this, 'create Athena table', {
+      lambdaFunction: lambdaCreateAthenaTable,
+    })
+
+    const queryStringReadTable = getSqlString('readTable.sql')
+
+    const lambdaCreateAthenaQuery = new lambdaNodejs.NodejsFunction(this, 'lambda-function-create-athena-query', {
+      functionName: `${props.name}-create-athena-query`,
+      timeout: Duration.minutes(2),
+      environment: {
+        REGION: Stack.of(this).region,
+        ATHENA_WORKGROUP_NAME: props.athenaWorkgroup.name,
+        ATHENA_TABLE_NAME: athenaTableName,
+        GLUE_DATABASE_NAME: props.glueDb.databaseName,
+        ATHENA_QUERY_STRING_READ_TABLE: queryStringReadTable,
+      },
+    })
+    lambdaCreateAthenaQuery.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['athena:CreateNamedQuery', 'athena:ListNamedQueries', 'athena:GetNamedQuery', 'athena:UpdateNamedQuery'],
+        resources: [`arn:aws:athena:${Stack.of(this).region}:${Stack.of(this).account}:workgroup/${props.athenaWorkgroup.name}`],
+      })
+    )
+    lambdaCreateAthenaQuery.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['kms:Decrypt', 'kms:GenerateDataKey'],
+        resources: [props.athenaResultBucket.encryptionKey!.keyArn],
+      })
+    )
+
+    const sfnTaskCreateAthenaQuery = new stepfunctions_tasks.LambdaInvoke(this, 'create Athena query', {
+      lambdaFunction: lambdaCreateAthenaQuery,
+    })
+
+    const definition = sfnTaskStartExport.next(sfnTaskCheckExportState).next(athenaDropTable).next(sfnTaskCreateAthenaTable).next(sfnTaskCreateAthenaQuery)
 
     const sfn = new stepfunctions.StateMachine(this, 'ddb-export-state-machine', {
       stateMachineName: `${props.name}-ddb-export-state-machine`,
@@ -105,17 +226,40 @@ export class DdbExportStepFunction extends Construct {
     sfn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['s3:*'],
-        resources: [props.athenaResultBucket.bucketArn,
-                  `${props.athenaResultBucket.bucketArn}/*`],
+        resources: [props.athenaResultBucket.bucketArn, `${props.athenaResultBucket.bucketArn}/*`],
       })
-    );
+    )
     sfn.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['kms:Decrypt'],
+        actions: ['kms:Decrypt', 'kms:GenerateDataKey'],
         resources: [props.athenaResultBucket.encryptionKey!.keyArn],
       })
-    );
-    
-
+    )
+    // sfn.addToRolePolicy(
+    //   new iam.PolicyStatement({
+    //     actions: [
+    //     'glue:BatchCreatePartition',
+    //     'glue:BatchDeletePartition',
+    //     'glue:BatchDeleteTable',
+    //     'glue:BatchGetPartition',
+    //     'glue:CreateDatabase',
+    //     'glue:CreatePartition',
+    //     'glue:CreateTable',
+    //     'glue:DeleteDatabase',
+    //     'glue:DeletePartition',
+    //     'glue:DeleteTable',
+    //     'glue:GetDatabase',
+    //     'glue:GetDatabases',
+    //     'glue:GetPartition',
+    //     'glue:GetPartitions',
+    //     'glue:GetTable',
+    //     'glue:GetTables',
+    //     'glue:UpdateDatabase',
+    //     'glue:UpdatePartition',
+    //     'glue:UpdateTable'
+    //   ],
+    //     resources: [props.glueDb.databaseArn, `arn:aws:glue:${Stack.of(this).region}:${Stack.of(this).account}:table/${props.glueDb.databaseName}/${athenaTableName}`],
+    //   })
+    // )
   }
 }

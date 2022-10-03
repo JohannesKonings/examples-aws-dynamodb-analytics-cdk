@@ -23,7 +23,8 @@ export class DdbExport extends Construct {
       return createTableCommand
     }
   
-    const queryString = getSqlString('createTable.sql')
+    const queryStringCreateTable = getSqlString('createTable.sql')
+    const queryStringReadTable = getSqlString('readTable.sql')
 
     const ddbExportAthenaQuery = new lambdaNodejs.NodejsFunction(this, 'lambda-function-ddb-export', {
       functionName: `${props.name}-ddb-export-athena-query`,
@@ -34,7 +35,8 @@ export class DdbExport extends Construct {
         S3_BUCKET_NAME: props.bucket.bucketName,
         GLUE_DATABASE_NAME: props.glueDb.databaseName,
         ATHENA_WORKGROUP_NAME: props.athenaWorkgroup.name,
-        ATHENA_QUERY_STRING: queryString
+        ATHENA_QUERY_STRING_CREATE_TABLE: queryStringCreateTable,
+        ATHENA_QUERY_STRING_READ_TABLE: queryStringReadTable,
       },
     })
     ddbExportAthenaQuery.addToRolePolicy(

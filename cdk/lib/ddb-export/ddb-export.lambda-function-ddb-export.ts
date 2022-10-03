@@ -1,16 +1,28 @@
 import { DynamoDBClient, ExportTableToPointInTimeCommand } from '@aws-sdk/client-dynamodb'
-import { AthenaClient, UpdateNamedQueryCommand, CreateNamedQueryCommand, GetNamedQueryCommand, BatchGetNamedQueryCommand, ListNamedQueriesCommand } from '@aws-sdk/client-athena'
+import {
+  AthenaClient,
+  UpdateNamedQueryCommand,
+  CreateNamedQueryCommand,
+  GetNamedQueryCommand,
+  ListNamedQueriesCommand,
+  StartQueryExecutionCommand,
+} from '@aws-sdk/client-athena'
 
 const region = process.env.REGION
 const dynamoDbTableArn = process.env.DYNAMO_DB_TABLE_ARN
 const s3BucketName = process.env.S3_BUCKET_NAME
 const glueDatabaseName = process.env.GLUE_DATABASE_NAME
 const athenaWorkgroupName = process.env.ATHENA_WORKGROUP_NAME
-const athenaQueryString = process.env.ATHENA_QUERY_STRING
+const athenaQueryStringCreateTable = process.env.ATHENA_QUERY_STRING_CREATE_TABLE
+const athenaQueryStringReadTable = process.env.ATHENA_QUERY_STRING_READ_TABLE
+
+const athenaTableName = 'ddb_exported_table'
 
 exports.handler = async () => {
   const exportId = await exportDynamoDbTable()
-  await createOrUpdateAthenaSavedQuery(exportId!)
+  await dropAthenaTable()
+  await createOrUpdateAthenaSavedQuery('ddb-export-create-table', athenaQueryStringCreateTable!, exportId!)
+  await createOrUpdateAthenaSavedQuery('ddb-export-read-table', athenaQueryStringReadTable!)
 
   const response = {
     statusCode: 200,
@@ -37,9 +49,8 @@ const exportDynamoDbTable = async () => {
   return exportId
 }
 
-const createOrUpdateAthenaSavedQuery = async (exportId: string) => {
-  const queryName = 'ddb-export-query'
-
+const createOrUpdateAthenaSavedQuery = async (queryName: string, queryString: string, exportId?: string) => {
+  
   const client = new AthenaClient({ region: region })
 
   const commandListNamedQueriesCommand = new ListNamedQueriesCommand({
@@ -61,7 +72,13 @@ const createOrUpdateAthenaSavedQuery = async (exportId: string) => {
     }
   }
 
-  const updatedQueryString = athenaQueryString!.replace('ddb-export-id', exportId)
+  let updatedQueryString = queryString!.replace('table_name', athenaTableName)
+  updatedQueryString = updatedQueryString!.replace('db_name', glueDatabaseName!)
+  if (exportId) {
+    updatedQueryString = updatedQueryString!.replace('ddb-export-id', exportId)
+  }
+  
+
   console.log('updatedQueryString', updatedQueryString)
 
   if (queryId === '') {
@@ -84,5 +101,16 @@ const createOrUpdateAthenaSavedQuery = async (exportId: string) => {
     const responseUpdateNamedQueryCommand = await client.send(commandUpdateNamedQueryCommand)
     console.log('responseUpdateNamedQueryCommand', responseUpdateNamedQueryCommand)
   }
+}
 
+const dropAthenaTable = async () => {
+  const client = new AthenaClient({ region: region })
+
+  const commandStartQueryExecutionCommand = new StartQueryExecutionCommand({
+    QueryString: `DROP TABLE IF EXISTS \`${glueDatabaseName}.${athenaTableName}\`;`,
+    WorkGroup: athenaWorkgroupName,
+  })
+
+  const responseStartQueryExecutionCommand = await client.send(commandStartQueryExecutionCommand)
+  console.log('responseStartQueryExecutionCommand', responseStartQueryExecutionCommand)
 }

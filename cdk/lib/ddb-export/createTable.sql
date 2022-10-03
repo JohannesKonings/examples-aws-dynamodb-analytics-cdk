@@ -1,4 +1,4 @@
-CREATE EXTERNAL TABLE ddb_exported_table (
+CREATE EXTERNAL TABLE table_name (
  Item struct<pk:struct<S:string>,
              person:struct<M:struct<
                 jobArea:struct<S:string>,

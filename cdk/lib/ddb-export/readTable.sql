@@ -1,14 +1,9 @@
-CREATE EXTERNAL TABLE ddb_exported_table (
- Item struct<pk:struct<S:string>,
-             person:struct<M:struct<
-                jobArea:struct<S:string>,
-                firstname:struct<S:string>,
-                gender:struct<S:string>,
-                jobType:struct<S:string>,
-                jobDescriptor:struct<S:string>,
-                lastname:struct<S:string>
-                >>>
-)
-ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
-LOCATION 's3Location'
-TBLPROPERTIES ( 'has_encrypted_data'='true');
+SELECT 
+item.pk.S as pk,
+item.person.M.firstname.S as firstname,
+item.person.M.lastname.S as lastname,
+item.person.M.jobArea.S as jobArea,
+item.person.M.gender.S as gender, 
+item.person.M.jobType.S as jobType, 
+item.person.M.jobDescriptor.S as jobDescriptor
+FROM "db_name"."table_name";
