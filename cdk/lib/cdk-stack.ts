@@ -11,12 +11,9 @@ import {
   aws_iam as iam,
   aws_glue as glue,
   aws_athena as athena,
-  aws_logs as logs,
   StackProps,
 } from 'aws-cdk-lib'
 
-import { LambdaFunctionProcessor as LambdaFunctionProcessorAlpha, DeliveryStream as DeliveryStreamAlpha } from '@aws-cdk/aws-kinesisfirehose-alpha'
-import * as destinationsAlpha from '@aws-cdk/aws-kinesisfirehose-destinations-alpha'
 import * as glueAlpha from '@aws-cdk/aws-glue-alpha'
 import { CfnDeliveryStream } from 'aws-cdk-lib/aws-kinesisfirehose'
 import { SavedQueries } from './saved-queries/saved-queries'
@@ -25,6 +22,9 @@ import { QuicksightRole } from './quicksight/quicksight-role'
 import { DdbExport } from './ddb-export/ddb-export'
 import { DdbExportStepFunction } from './ddb-export/ddb-export-step-function'
 import { Config } from '../bin/config'
+import { FirehoseJson } from './firehose/firehose-json'
+import { FirehoseParquet } from './firehose/firehose-parquet'
+import { th } from '@faker-js/faker'
 
 
 export interface CdkStackProps extends StackProps {
@@ -79,31 +79,48 @@ export class CdkStack extends Stack {
       autoDeleteObjects: true,
     })
 
-    const processor = new lambda.NodejsFunction(this, 'lambda-function-processor', {
-      functionName: `${name}-firehose-converter`,
-      timeout: Duration.minutes(2),
-      bundling: {
-        sourceMap: true,
+    const glueSecurityConfiguration = new glueAlpha.SecurityConfiguration(this, 'glue security options', {
+      securityConfigurationName: `${name}-security-options`,
+      s3Encryption: {
+        mode: glueAlpha.S3EncryptionMode.KMS,
+        kmsKey: kmsKey,
       },
     })
 
-    const lambdaProcessor = new LambdaFunctionProcessorAlpha(processor, {
-      retries: 5,
+    const glueDb = new glueAlpha.Database(this, 'glue db', {
+      databaseName: `${name}-db`,
     })
 
-    const ddbChangesPrefix = 'ddb-changes';
+    let ddbChangesPrefix;
 
-    // json format
-    const s3Destination = new destinationsAlpha.S3Bucket(firehoseBucket, {
-      encryptionKey: kmsKey,
-      bufferingInterval: Duration.seconds(60),
-      processor: lambdaProcessor,
-      dataOutputPrefix: `${ddbChangesPrefix}/`,
-      logGroup: new logs.LogGroup(this, 'firehose-s3-log-group', {
-        logGroupName: `${name}-firehose-s3-log-group`,
-        removalPolicy: RemovalPolicy.DESTROY,
-      }),
-    })
+    switch (props?.config.kinesisFormat) {
+      case 'JSON':
+        ddbChangesPrefix = 'ddb-changes-json';
+        new FirehoseJson(this, 'firehoseJson', {
+          name: name,
+          kmsKey: kmsKey,
+          firehoseBucket: firehoseBucket,
+          ddbChangesPrefix: ddbChangesPrefix,
+          stream: stream,
+        })
+        break;
+      case 'PARQUET':
+        ddbChangesPrefix = 'ddb-changes-parquet';
+        new FirehoseParquet(this, 'firehoseJson', {
+          name: name,
+          kmsKey: kmsKey,
+          firehoseBucket: firehoseBucket,
+          ddbChangesPrefix: ddbChangesPrefix,
+          stream: stream,
+          glueSecurityConfiguration: glueSecurityConfiguration,
+          glueDb: glueDb,
+          table: table,
+        })
+        break;
+      default: throw new Error('kinesisFormat not supported');
+    }
+
+
 
     // parquet format
     // const s3Destination = new destinationsAlpha.S3Bucket(firehoseBucket, {
@@ -113,11 +130,7 @@ export class CdkStack extends Stack {
     //   bufferingSize: Size.mebibytes(64),
     // });
 
-    const firehoseDeliveryStream = new DeliveryStreamAlpha(this, 'Delivery Stream', {
-      deliveryStreamName: `${name}-firehose`,
-      sourceStream: stream,
-      destinations: [s3Destination],
-    })
+
 
     // // https://5k-team.trilogy.com/hc/en-us/articles/360015651640-Configuring-Firehose-with-CDK
     // // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-kinesisfirehose-deliverystream.html
@@ -161,19 +174,6 @@ export class CdkStack extends Stack {
       assumedBy: new iam.ServicePrincipal('glue.amazonaws.com'),
     })
 
-
-    const glueDb = new glueAlpha.Database(this, 'glue db', {
-      databaseName: `${name}-db`,
-    })
-
-    const glueSecurityOptions = new glueAlpha.SecurityConfiguration(this, 'glue security options', {
-      securityConfigurationName: `${name}-security-options`,
-      s3Encryption: {
-        mode: glueAlpha.S3EncryptionMode.KMS,
-        kmsKey: kmsKey,
-      },
-    })
-
     const crawler = new glue.CfnCrawler(this, 'crawler', {
       name: `${name}-crawler`,
       role: roleCrawler.roleArn,
@@ -185,7 +185,7 @@ export class CdkStack extends Stack {
         ],
       },
       databaseName: glueDb.databaseName,
-      crawlerSecurityConfiguration: glueSecurityOptions.securityConfigurationName,
+      crawlerSecurityConfiguration: glueSecurityConfiguration.securityConfigurationName,
       configuration: JSON.stringify({
         Version: 1.0,
         Grouping: { TableGroupingPolicy: 'CombineCompatibleSchemas' },
@@ -225,7 +225,7 @@ export class CdkStack extends Stack {
         actions: ['glue:GetSecurityConfiguration'],
       })
     )
-    glueSecurityOptions.node.addDependency(roleCrawler)
+    glueSecurityConfiguration.node.addDependency(roleCrawler)
     // crawler.node.addDependency(roleCrawler)
 
     const athenaWorkgroup = new athena.CfnWorkGroup(this, 'analytics-athena-workgroup', {
@@ -251,11 +251,18 @@ export class CdkStack extends Stack {
     savedQueries.node.addDependency(athenaWorkgroup)
 
     if (props?.config.isQuicksight) {
+      let quicksightUsername;
+      if (process.env.QUICKSIGHT_USERNAME) {
+        quicksightUsername = process.env.QUICKSIGHT_USERNAME;
+      } else {
+        throw new Error('QUICKSIGHT_USERNAME environment variable is required');
+      }
 
       new Quicksight(this, 'quicksight', {
         bucket: firehoseBucket,
         name: name,
         prefix: ddbChangesPrefix,
+        quicksightUsername: quicksightUsername,
       })
 
       new QuicksightRole(this, 'quicksight-role', {

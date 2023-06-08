@@ -6,6 +6,7 @@ export interface QuicksightProps {
   name: string
   bucket: IBucket
   prefix: string
+  quicksightUsername: string
 }
 
 export class Quicksight extends Construct {
@@ -48,8 +49,7 @@ export class Quicksight extends Construct {
     const datasetName = `${props.name}-dataset`
     const manifestKey = 'manifest/manifest.json'
 
-    const quicksightUsername = process.env.QUICKSIGHT_USERNAME
-    const principalArn = `arn:aws:quicksight:${Stack.of(this).region}:${Stack.of(this).account}:user/default/${quicksightUsername}`
+    const principalArn = `arn:aws:quicksight:${Stack.of(this).region}:${Stack.of(this).account}:user/default/${props.quicksightUsername}`
 
     const permissionsDatasource = [
       {

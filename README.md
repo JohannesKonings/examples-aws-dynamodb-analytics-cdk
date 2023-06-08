@@ -2,7 +2,40 @@
 
 ![overview](./diagrams/overview.drawio.svg)
 
-## deploy
+## deploy options
+
+The [config file](./cdk/bin/config.ts) controls the deplyoement options.
+
+### Firehose
+
+The formats `JSON` and `Parquet` can be choosen
+
+```typescript
+export const config: Config = {
+    ...
+    kinesisFormat: 'JSON',
+    ...
+}
+```
+
+```typescript
+export const config: Config = {
+    ...
+    kinesisFormat: 'PARQUET',
+    ...
+}
+```
+
+
+### Quicksight
+
+```typescript
+export const config: Config = {
+    ...
+    isQuicksight: true,
+    ...
+}
+```
 
 `cd cdk`
 
