@@ -1,7 +1,6 @@
 import { Construct } from 'constructs'
 import {
   Stack,
-  StackProps,
   RemovalPolicy,
   Duration,
   aws_kms as kms,
@@ -13,6 +12,7 @@ import {
   aws_glue as glue,
   aws_athena as athena,
   aws_logs as logs,
+  StackProps,
 } from 'aws-cdk-lib'
 
 import { LambdaFunctionProcessor as LambdaFunctionProcessorAlpha, DeliveryStream as DeliveryStreamAlpha } from '@aws-cdk/aws-kinesisfirehose-alpha'
@@ -24,9 +24,15 @@ import { Quicksight } from './quicksight/quicksight'
 import { QuicksightRole } from './quicksight/quicksight-role'
 import { DdbExport } from './ddb-export/ddb-export'
 import { DdbExportStepFunction } from './ddb-export/ddb-export-step-function'
+import { Config } from '../bin/config'
+
+
+export interface CdkStackProps extends StackProps {
+  config: Config
+}
 
 export class CdkStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props?: CdkStackProps) {
     super(scope, id, props)
 
     const name = `persons-cdk`
@@ -244,16 +250,19 @@ export class CdkStack extends Stack {
 
     savedQueries.node.addDependency(athenaWorkgroup)
 
-    new Quicksight(this, 'quicksight', {
-      bucket: firehoseBucket,
-      name: name,
-      prefix: ddbChangesPrefix,
-    })
+    if (props?.config.isQuicksight) {
 
-    new QuicksightRole(this, 'quicksight-role', {
-      name: name,
-      bucket: firehoseBucket,
-    })
+      new Quicksight(this, 'quicksight', {
+        bucket: firehoseBucket,
+        name: name,
+        prefix: ddbChangesPrefix,
+      })
+
+      new QuicksightRole(this, 'quicksight-role', {
+        name: name,
+        bucket: firehoseBucket,
+      })
+    }
 
     new DdbExport(this, 'ddb-export', {
       name: name,
