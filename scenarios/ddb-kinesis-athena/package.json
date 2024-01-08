@@ -1,0 +1,22 @@
+{
+	"name": "ddb-kinesis-athena",
+	"version": "1.0.0",
+	"description": "",
+	"type": "module",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"cdk": "cdk",
+		"deploy": "echo deploy",
+		"build": "tsc"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "MIT",
+	"Resources": {
+		"DeliveryStream": {
+			"Type": "AWS::KinesisFirehose::DeliveryStream",
+			"Properties": {}
+		}
+	}
+}

@@ -1,4 +1,12 @@
-# test-aws-dynamodb-athena-cdk
+# examples-aws-dynamodb-analytics-cdk
+
+## scenarios
+
+## ddb-kinesis-athena: DynamoDb -> Kinesis Data Streams -> Data Firehose -> S3 -> Glue Crawler -> Athena
+
+![ddb-kinesis-athena architecture](./diagrams/ddb-kinesis-athena.drawio.svg)
+
+## archive
 
 ![overview](./diagrams/overview.drawio.svg)
 
