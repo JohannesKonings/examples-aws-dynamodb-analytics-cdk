@@ -115,52 +115,11 @@ export class CdkStack extends Stack {
           glueSecurityConfiguration: glueSecurityConfiguration,
           glueDb: glueDb,
           table: table,
+          tableName: name,
         })
         break;
       default: throw new Error('kinesisFormat not supported');
     }
-
-
-
-    // parquet format
-    // const s3Destination = new destinationsAlpha.S3Bucket(firehoseBucket, {
-    //   encryptionKey: kmsKey,
-    //   bufferingInterval: Duration.seconds(60),
-    //   processor: lambdaProcessor,
-    //   bufferingSize: Size.mebibytes(64),
-    // });
-
-
-
-    // // https://5k-team.trilogy.com/hc/en-us/articles/360015651640-Configuring-Firehose-with-CDK
-    // // https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-kinesisfirehose-deliverystream.html
-    // const firehoseDeliveryStreamCfn = firehoseDeliveryStream.node.defaultChild as CfnDeliveryStream;
-    // firehoseDeliveryStreamCfn.addPropertyOverride('ExtendedS3DestinationConfiguration.DataFormatConversionConfiguration', {
-    //   inputFormatConfiguration: {
-    //     deserializer: {
-    //       // These settings might need to be changed based on the use case
-    //       // This is the default settings when configured through the console
-    //       openXJsonSerDe: {
-    //         caseInsensitive: false,
-    //         // Add hive keywords (e.g. timestamp) if they are added to events schema
-    //         columnToJsonKeyMappings: {},
-    //         convertDotsInJsonKeysToUnderscores: false,
-    //       },
-    //     },
-    //   },
-    //   outputFormatConfiguration: {
-    //     serializer: {
-    //       parquetSerDe: {
-    //         compression: 'SNAPPY',
-    //       },
-    //     },
-    //   },
-    //   schemaConfiguration: {
-    //     databaseName: this.backendStack.glueStack.database.databaseName, // Target Glue database name
-    //     roleArn: this.deliveryStreamRole.roleArn,
-    //     tableName: this.backendStack.glueStack.eventsTable.tableName, // Target Glue table name
-    //   },
-    // });
 
     const athenaQueryResults = new s3.Bucket(this, 'query-results', {
       bucketName: `${name}-query-results`,
