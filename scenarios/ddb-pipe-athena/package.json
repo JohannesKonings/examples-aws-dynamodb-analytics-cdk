@@ -1,5 +1,5 @@
 {
-	"name": "ddb-kinesis-athena",
+	"name": "ddb-pipe-athena",
 	"version": "1.0.0",
 	"description": "",
 	"type": "module",

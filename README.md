@@ -1,10 +1,23 @@
 # examples-aws-dynamodb-analytics-cdk
 
+diff over all: `npm run cdk -- diff`
+deploye over all: `npm run cdk -- deploy`
+
 ## scenarios
 
-## ddb-kinesis-athena: DynamoDb -> Kinesis Data Streams -> Data Firehose -> S3 -> Glue Crawler -> Athena
+## ddb-kinesis-athena: DynamoDb -> DynamoDb Streams -> Kinesis Data Streams -> Data Firehose -> S3 -> Glue Crawler -> Athena
+
+diff: `npm run cdk:ddb-kinesis-athena -- diff`
+deploy: `npm run cdk:ddb-kinesis-athena -- deploy`
 
 ![ddb-kinesis-athena architecture](./diagrams/ddb-kinesis-athena.drawio.svg)
+
+## ddb-kinesis-athena: DynamoDb -> EventBridge Pipe (DynamoDb Streams -> Data Firehose) -> S3 -> Glue Crawler -> Athena
+
+diff: `npm run cdk:ddb-pipe-athena -- diff`
+deploy: `npm run cdk:ddb-pipe-athena -- deploy`
+
+![ddb-pipe-athena architecture](./diagrams/ddb-pipe-athena.drawio.svg)
 
 ## archive
 
@@ -34,7 +47,6 @@ export const config: Config = {
 }
 ```
 
-
 ### Quicksight
 
 ```typescript
@@ -55,7 +67,7 @@ see more information here: [https://dev.to/aws-builders/example-how-to-analyze-d
 
 ## warnings
 
-:warning: Don't forget to destroy after testing. 
+:warning: Don't forget to destroy after testing.
 
-* Kinesis Data Streams has [costs](https://aws.amazon.com/kinesis/data-streams/pricing/) per hour
-* Quicksight has [costs](https://aws.amazon.com/quicksight/pricing/) after the free trial
+- Kinesis Data Streams has [costs](https://aws.amazon.com/kinesis/data-streams/pricing/) per hour
+- Quicksight has [costs](https://aws.amazon.com/quicksight/pricing/) after the free trial
