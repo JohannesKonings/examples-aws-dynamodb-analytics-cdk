@@ -1,0 +1,23 @@
+{
+  "extensions": {
+    "recommendations": ["esbenp.prettier-vscode"]
+  },
+  "settings": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "folders": [
+    {
+      "name": "common",
+      "path": "common"
+    },
+    {
+      "name": "ddb-kinesis-athena",
+      "path": "scenarios/ddb-kinesis-athena"
+    },
+    {
+      "name": "project folder",
+      "path": "./"
+    }
+  ]
+}
