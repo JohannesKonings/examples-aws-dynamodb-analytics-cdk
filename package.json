@@ -9,6 +9,7 @@
     "build": "npm run --workspaces build",
     "cdk": "npm run cdk --workspaces --",
     "cdk:ddb-kinesis-athena": "npm run cdk --workspace=ddb-kinesis-athena",
+    "cdk:ddb-pipe-athena": "npm run cdk --workspace=ddb-pipe-athena",
     "lint": "eslint 'scenarios/**/src/**/*.{js,mjs,cjs,ts,tsx,json}'",
     "lint:fix": "npm run lint -- --fix",
     "_format:cmd": "prettier 'scenarios/**/src/**/*.{js,mjs,cjs,ts,tsx,json}'",
@@ -25,6 +26,7 @@
     "@aws-cdk/aws-glue-alpha": "^2.128.0-alpha.0",
     "@aws-cdk/aws-kinesisfirehose-alpha": "^2.128.0-alpha.0",
     "@aws-cdk/aws-kinesisfirehose-destinations-alpha": "2.128.0-alpha.0",
+    "@aws-cdk/aws-pipes-alpha": "^2.128.0-alpha.0",
     "@faker-js/faker": "8.4.1",
     "@types/aws-lambda": "8.10.133",
     "@types/node": "20.11.18",
@@ -32,7 +34,7 @@
     "@typescript-eslint/parser": "^6.21.0",
     "aws-cdk": "2.128.0",
     "aws-cdk-lib": "2.128.0",
-    "cdk-nag": "2.28.35",
+    "cdk-nag": "2.28.36",
     "constructs": "10.3.0",
     "eslint": "8.56.0",
     "eslint-config-prettier": "9.1.0",
@@ -44,7 +46,7 @@
   "dependencies": {
     "@aws-lambda-powertools/logger": "1.18.0",
     "@aws-lambda-powertools/tracer": "1.18.0",
-    "@aws-sdk/client-dynamodb": "3.514.0",
+    "@aws-sdk/client-dynamodb": "3.515.0",
     "@middy/core": "5.2.4",
     "electrodb": "2.13.1",
     "zod": "3.22.4"

@@ -2,6 +2,7 @@ import {
   AttributeType,
   BillingMode,
   ITable,
+  StreamViewType,
   Table,
 } from "aws-cdk-lib/aws-dynamodb";
 import { IStream } from "aws-cdk-lib/aws-kinesis";
@@ -11,6 +12,7 @@ import { Construct } from "constructs";
 interface DynamoDbTableConstructProps {
   kinesisStream?: IStream;
   kmsKey: IKey;
+  streamViewType?: StreamViewType;
 }
 
 export class DynamoDbTableConstruct extends Construct {
@@ -22,7 +24,7 @@ export class DynamoDbTableConstruct extends Construct {
   ) {
     super(scope, id);
 
-    const { kmsKey, kinesisStream } = props;
+    const { kmsKey, kinesisStream, streamViewType } = props;
 
     this.table = new Table(this, `${id}-Table`, {
       billingMode: BillingMode.PAY_PER_REQUEST,
@@ -36,6 +38,7 @@ export class DynamoDbTableConstruct extends Construct {
       },
       encryptionKey: kmsKey,
       pointInTimeRecovery: true,
+      stream: streamViewType,
       kinesisStream: kinesisStream,
     });
   }

@@ -55,9 +55,10 @@ export class GlueCrawlerConstruct extends Construct {
         actions: [
           "glue:GetDatabase",
           "glue:GetTable",
+          "glue:UpdateTable",
           "glue:CreateTable",
           "glue:BatchGetPartition",
-          "glue:UpdateTable",
+          "glue:BatchCreatePartition",
         ],
         resources: [
           glueDatabase.catalogArn,

@@ -7,12 +7,14 @@ import {
 } from "aws-cdk-lib";
 import { AwsSolutionsChecks } from "cdk-nag";
 
-import { DdbKinesisAthenaStack } from "./stacks/ddb-kinesis-athena-stack.js";
+import { DdbKinesisAthenaStack as DdbPipeAthenaStack } from "./stacks/ddb-pipe-athena-stack.js";
+
+
 
 const app = new App();
-const scenarioName = "ddb-kinesis-athena";
+const scenarioName = "ddb-pipe-athena";
 const logLevel = "DEBUG";
-const stack = new DdbKinesisAthenaStack(app, scenarioName, {
+const stack = new DdbPipeAthenaStack(app, scenarioName, {
   scenarioName: scenarioName,
   logLevel: logLevel,
 });

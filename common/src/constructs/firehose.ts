@@ -16,7 +16,7 @@ import { Construct } from "constructs";
 import { LambdaConstruct } from "./lambda.js";
 
 interface FirehoseConstructProps {
-  kinesisStream: IStream;
+  kinesisStream?: IStream;
   s3Bucket: IBucket;
 }
 
